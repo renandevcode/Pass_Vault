@@ -121,7 +121,11 @@ from password_manager.vault import (
     VaultError,
     VaultFormatError,
     VaultNotFoundError,
+    _now_iso,
 )
+
+from dataclasses import replace
+
 
 
 # =============================================================================
@@ -280,6 +284,7 @@ def _render_entry(name: str, entry: Entry) -> Panel:
         body_lines.append(f"[bold]notes[/bold]      {entry.notes}")
     body_lines.append(f"[dim]created    {entry.created_at}[/dim]")
     body_lines.append(f"[dim]updated    {entry.updated_at}[/dim]")
+    body_lines.append(f"[dim]last used    {entry.last_used_at}[/dim]")
     return Panel(
         "\n".join(body_lines),
         title = name,
@@ -372,6 +377,10 @@ def get(
         # entry is a frozen Entry instance — its fields remain
         # readable after the vault closes, but we still render
         # inside the block to keep the lifecycle obvious
+        entry = replace(entry, last_used_at=_now_iso())
+        unlocked.entries[name] = entry
+        unlocked.save()
+
         console.print(_render_entry(name, entry))
 
 

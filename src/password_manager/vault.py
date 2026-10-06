@@ -381,6 +381,7 @@ class Entry:
     notes: str = ""
     created_at: str = field(default_factory = _now_iso)
     updated_at: str = field(default_factory = _now_iso)
+    last_used_at: str = field(default_factory=lambda: "")
 
     def to_dict(self) -> dict[str, str]:
         """
@@ -427,6 +428,7 @@ class Entry:
                                   ""),
             updated_at = data.get("updated_at",
                                   ""),
+            last_used_at = data.get("last_used_at", ""),
         )
 
 
