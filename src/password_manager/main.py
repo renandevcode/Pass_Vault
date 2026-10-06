@@ -126,6 +126,9 @@ from password_manager.vault import (
 
 from dataclasses import replace
 
+import json
+
+import os
 
 
 # =============================================================================
@@ -599,3 +602,37 @@ def count(vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
         print(len(unlocked.entries))
         return
 
+
+@app.command(name="export")
+def export_entries(
+    path: Annotated[Path,typer.Argument(help="Destination JSON file"),] = Path("./pv-export.json"),
+    vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
+    """Export vault entries to a plaintext JSON file."""
+    master =_prompt_master_password()
+    with _unlock_or_exit(vault,master) as unlocked:
+        console.print("[bold red]ATENÇÃO: o arquivo terá todas as senhas em texto simples![/bold red]")
+        typer.confirm("Você tem certeza de que deseja exportar?", abort=True)
+        data = {
+            name: entry.to_dict()
+            for name, entry in unlocked.entries.items()
+        }
+        json_text=json.dumps(data,ensure_ascii=False, indent=2)
+        try:
+            fd = os.open(
+                path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as file :
+                        file.write(json_text)
+                        file.write("\n")
+
+        except FileExistsError:
+            error_console.print(f"[red]O arquivo já existe: {path}[/red]")
+            raise typer.Exit(code=1) from None
+                
+        except OSError as exc:
+            error_console.print(f"[red]Não foi possível exportar: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+
+        console.print(f"Entradas exportadas para: {path}")
