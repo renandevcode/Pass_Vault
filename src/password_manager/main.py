@@ -266,7 +266,7 @@ def _unlock_or_exit(path: Path, master_password: str) -> UnlockedVault:
         raise typer.Exit(code = 1) from None
 
 
-def _render_entry(name: str, entry: Entry) -> Panel:
+def _render_entry(name: str, entry: Entry, show: bool = False) -> Panel:
     """
     Format an entry as a rich Panel for terminal display
 
@@ -274,9 +274,11 @@ def _render_entry(name: str, entry: Entry) -> Panel:
     let the terminal handle long values. The password is shown
     verbatim — this is a CLI tool, the user already trusts the screen
     """
+    password_display = entry.password if show else  "********"
+
     body_lines = [
         f"[bold]username[/bold]   {entry.username}",
-        f"[bold]password[/bold]   {entry.password}",
+        f"[bold]password[/bold]   {password_display}",
     ]
     if entry.url:
         body_lines.append(f"[bold]url[/bold]        {entry.url}")
@@ -361,6 +363,10 @@ def get(
     name: Annotated[str,
                     typer.Argument(help = "Entry name to retrieve")],
     vault: VaultPath = DEFAULT_VAULT_PATH,
+    show: Annotated[
+        bool,
+        typer.Option("--show", "-s", help="Show the password"),
+    ] = False,
 ) -> None:
     """
     Show every field of one entry by name
@@ -381,7 +387,7 @@ def get(
         unlocked.entries[name] = entry
         unlocked.save()
 
-        console.print(_render_entry(name, entry))
+        console.print(_render_entry(name, entry, show=show))
 
 
 @app.command()
