@@ -572,3 +572,15 @@ def search(substring: Annotated[str,typer.Argument(help = "Search entries by par
             entry = unlocked.entries[name]
             table.add_row(name, entry.username, entry.updated_at)
         console.print(table)
+
+@app.command(name = "count")
+def count(vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
+    """
+    Print the number of entries in the vault.
+    """    
+    master = _prompt_master_password()
+
+    with _unlock_or_exit(vault, master) as unlocked:
+        print(len(unlocked.entries))
+        return
+
