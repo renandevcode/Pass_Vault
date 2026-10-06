@@ -245,3 +245,7 @@ MSG_MASTER_PASSWORD_TOO_SHORT: Final[str] = (
 MSG_MASTER_PASSWORD_CHANGED: Final[str] = (
     "Master password changed. Vault re-encrypted at {path}"
 )
+
+MSG_SEARCH_NO_RESULTS : Final[str] = (
+    "No entries found matching '{substring}'."
+)

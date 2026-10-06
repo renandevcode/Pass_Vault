@@ -93,6 +93,7 @@ from password_manager.constants import (
     MSG_VAULT_EMPTY,
     MSG_VAULT_NOT_FOUND,
     MSG_WRONG_MASTER_PASSWORD,
+    MSG_SEARCH_NO_RESULTS,
     PROMPT_ENTRY_NOTES,
     PROMPT_ENTRY_URL,
     PROMPT_ENTRY_USERNAME,
@@ -540,3 +541,34 @@ def change_password(vault: VaultPath = DEFAULT_VAULT_PATH) -> None:
         f"{MSG_MASTER_PASSWORD_CHANGED.format(path=vault)}"
         f"[/green]"
     )
+
+
+@app.command(name = "search")
+def search(substring: Annotated[str,typer.Argument(help = "Search entries by part of their name")],vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
+    """
+    Display a table of entries whose names contain the substring,
+    ignoring case, with their names, usernames, and update timestamps.
+    """
+    if not substring.strip():
+        console.print(f"[yellow]{MSG_SEARCH_NO_RESULTS.format(substring=substring)}[/yellow]")
+        return 
+        
+    master = _prompt_master_password()
+    # `with` ensures the AES key and plaintext entries are dropped
+    # as soon as the table has been printed. We render INSIDE the
+    # block because we still need to read the entries
+    with _unlock_or_exit(vault, master) as unlocked:
+        query=substring.strip().casefold()
+        names = [name for name in unlocked.names() if query in name.casefold()]
+        if not names :
+            console.print(f"[yellow]{MSG_SEARCH_NO_RESULTS.format(substring=substring)}[/yellow]")
+            return
+
+        table = Table(title = f"Entries in {vault}", show_lines = False)
+        table.add_column("name", style = "cyan", no_wrap = True)
+        table.add_column("username", style = "white")
+        table.add_column("updated", style = "dim")
+        for name in names:
+            entry = unlocked.entries[name]
+            table.add_row(name, entry.username, entry.updated_at)
+        console.print(table)
