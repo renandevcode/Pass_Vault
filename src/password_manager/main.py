@@ -624,8 +624,8 @@ def export_entries(
                 0o600,
             )
             with os.fdopen(fd, "w", encoding="utf-8") as file :
-                        file.write(json_text)
-                        file.write("\n")
+                file.write(json_text)
+                file.write("\n")
 
         except FileExistsError:
             error_console.print(f"[red]O arquivo já existe: {path}[/red]")
@@ -636,3 +636,59 @@ def export_entries(
             raise typer.Exit(code=1) from None
 
         console.print(f"Entradas exportadas para: {path}")
+
+@app.command(name = "import")
+def import_entries(
+    path: Annotated[Path,typer.Argument(help="JSON file to import"),] = Path("./pv-export.json"),
+    vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
+    """Import vault entries from a plaintext JSON file."""
+    try:
+        json_text = path.read_text(encoding="utf-8")
+        data = json.loads(json_text)
+    except OSError as exc:
+        error_console.print(f"[red]Não foi possível ler o arquivo: {exc}[/red]")
+        raise typer.Exit(code=1) from None
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        error_console.print(f"[red]Arquivo JSON inválido: {exc}[/red]")
+        raise typer.Exit(code=1) from None
+
+    if not isinstance(data,dict):
+        error_console.print("[red]O JSON deve conter um objeto com as entradas.[/red]")
+        raise typer.Exit(code=1)
+    entries_to_import = {}
+
+    for name, entry_data in data.items():
+        if not isinstance(name, str) or not name.strip() or name != name.strip():
+            error_console.print("[red]Nome de entrada inválido.[/red]")
+            raise typer.Exit(code=1)
+
+        if not isinstance(entry_data, dict):
+            error_console.print(
+                f"[red]Os dados da entrada '{name}' devem ser um objeto.[/red]"
+            )
+            raise typer.Exit(code=1)
+
+        try:
+            entries_to_import[name] = Entry.from_dict(entry_data)
+        except VaultFormatError as exc:
+            error_console.print(f"[red]Entrada '{name}' inválida: {exc}[/red]")
+            raise typer.Exit(code=1) from None
+
+    master = _prompt_master_password()
+
+    with _unlock_or_exit(vault,master) as unlocked:
+        imported=0 
+
+        for name, entry in entries_to_import.items():
+            try:
+                unlocked.add_entry(name,entry)
+            except EntryAlreadyExistsError:
+                console.print(f"[yellow]Entrada '{name}' já existe; ignorada.[/yellow]")
+                continue
+
+            imported+=1
+
+        if imported:
+            unlocked.save()
+
+        console.print(f"{imported} entradas importadas")
