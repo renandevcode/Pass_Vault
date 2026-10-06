@@ -54,6 +54,9 @@ Connects to
 # Standard library: reads a password from the terminal WITHOUT
 # echoing the characters as the user types — same trick `sudo` uses.
 import getpass
+import json
+import os
+from dataclasses import replace
 # Standard library: object-oriented filesystem paths — safer and
 # more readable than gluing strings with `os.path.join`.
 from pathlib import Path
@@ -124,11 +127,8 @@ from password_manager.vault import (
     _now_iso,
 )
 
-from dataclasses import replace
 
-import json
 
-import os
 
 
 # =============================================================================
@@ -562,15 +562,18 @@ def change_password(vault: VaultPath = DEFAULT_VAULT_PATH) -> None:
 
 
 @app.command(name = "search")
-def search(substring: Annotated[str,typer.Argument(help = "Search entries by part of their name")],vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
+def search(
+    substring: Annotated[str, typer.Argument(help="Search entries by part of their name")],
+    vault: VaultPath = DEFAULT_VAULT_PATH,
+) -> None:
     """
     Display a table of entries whose names contain the substring,
     ignoring case, with their names, usernames, and update timestamps.
     """
     if not substring.strip():
         console.print(f"[yellow]{MSG_SEARCH_NO_RESULTS.format(substring=substring)}[/yellow]")
-        return 
-        
+        return
+
     master = _prompt_master_password()
     # `with` ensures the AES key and plaintext entries are dropped
     # as soon as the table has been printed. We render INSIDE the
@@ -595,7 +598,7 @@ def search(substring: Annotated[str,typer.Argument(help = "Search entries by par
 def count(vault: VaultPath = DEFAULT_VAULT_PATH,) -> None:
     """
     Print the number of entries in the vault.
-    """    
+    """
     master = _prompt_master_password()
 
     with _unlock_or_exit(vault, master) as unlocked:
@@ -610,7 +613,9 @@ def export_entries(
     """Export vault entries to a plaintext JSON file."""
     master =_prompt_master_password()
     with _unlock_or_exit(vault,master) as unlocked:
-        console.print("[bold red]ATENÇÃO: o arquivo terá todas as senhas em texto simples![/bold red]")
+        console.print(
+            "[bold red]ATENÇÃO: o arquivo terá todas as senhas em texto simples![/bold red]"
+        )
         typer.confirm("Você tem certeza de que deseja exportar?", abort=True)
         data = {
             name: entry.to_dict()
@@ -630,7 +635,7 @@ def export_entries(
         except FileExistsError:
             error_console.print(f"[red]O arquivo já existe: {path}[/red]")
             raise typer.Exit(code=1) from None
-                
+
         except OSError as exc:
             error_console.print(f"[red]Não foi possível exportar: {exc}[/red]")
             raise typer.Exit(code=1) from None
@@ -677,7 +682,7 @@ def import_entries(
     master = _prompt_master_password()
 
     with _unlock_or_exit(vault,master) as unlocked:
-        imported=0 
+        imported=0
 
         for name, entry in entries_to_import.items():
             try:
